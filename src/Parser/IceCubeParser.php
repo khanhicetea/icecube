@@ -28,7 +28,7 @@ class IceCubeParser
     $lastClosingTag = strrpos($content, '?>');
 
     if ($lastClosingTag === false) {
-      return null;
+      return $content;
     }
 
     return trim(substr($content, 0, $lastClosingTag + 2));

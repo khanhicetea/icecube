@@ -78,8 +78,12 @@ class IceCubeCompiler
 
   private function writeIfChanged($path, $content)
   {
+    if (trim($content) === '') {
+      return file_exists($path) && unlink($path);
+    }
+
     if (!file_exists($path) || file_get_contents($path) !== $content) {
-      file_put_contents($path, $content);
+      return (bool) file_put_contents($path, $content);
     }
   }
 
