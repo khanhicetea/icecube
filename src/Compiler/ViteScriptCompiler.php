@@ -6,6 +6,10 @@ class ViteScriptCompiler implements ScriptCompiler
 {
   public function compile(string $componentName, string $scriptCode, string $styleCode): string
   {
+    if (trim($styleCode) === '') {
+      return $scriptCode;
+    }
+
     return <<<JS
 // Embedded CSS
 import './{$componentName}.css';
