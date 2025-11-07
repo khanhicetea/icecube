@@ -21,6 +21,7 @@ IceCube aims to provide:
 #### 1. Component System
 
 - **[`Component`](src/Component.php)**: Abstract base class for all components
+
   - Provides unique ID generation for each component instance
   - Implements `SafeStringable` interface for seamless HTML rendering
 
@@ -32,6 +33,7 @@ IceCube aims to provide:
 #### 2. Parser Layer
 
 - **[`IceCubeParser`](src/Parser/IceCubeParser.php)**: Extracts content from `.ice.php` files
+
   - Separates PHP code from style and script tags
   - Supports multiple `<style>` tags with optional `global` attribute
   - Can parse colocated `.js` files separately
@@ -42,6 +44,7 @@ IceCube aims to provide:
 #### 3. Compiler Layer
 
 - **[`IceCubeCompiler`](src/Compiler/IceCubeCompiler.php)**: Main compilation orchestrator
+
   - Scans directories for `.ice.php` files
   - Manages autoloading of components
   - Compiles components on-demand or in batch
@@ -99,6 +102,7 @@ IceCubeRegistry
 ### Client-Side Runtime
 
 The registry generates JavaScript that:
+
 1. Dynamically imports component scripts on-demand
 2. Initializes components via `MutationObserver` (supports dynamic content)
 3. Provides a `refs` proxy for easy DOM element access
@@ -111,13 +115,21 @@ Styles are automatically scoped by wrapping them with the component's data attri
 
 ```css
 /* Original */
-.button { color: red; }
+.button {
+  color: red;
+}
 
 /* Compiled (Nesting) */
-[data-icecube=App_Components_Counter] { .button { color: red; } }
+[data-icecube="App_Components_Counter"] {
+  .button {
+    color: red;
+  }
+}
 
 /* Or with SCSS compiler */
-[data-icecube="App_Components_Counter"] .button { color: red; }
+[data-icecube="App_Components_Counter"] .button {
+  color: red;
+}
 ```
 
 Global styles (marked with `<style global>`) bypass scoping.
@@ -187,19 +199,19 @@ class Counter extends SingleFileComponent
 <script>
 export default function ({ root, refs, props }) {
   const { counter, incrementBtn, decrementBtn } = refs;
-  
+
   let count = props.initialCount || 0;
   const render = () => {
     counter.textContent = count;
   };
-  
+
   render();
-  
+
   incrementBtn.addEventListener('click', () => {
     count++;
     render();
   });
-  
+
   decrementBtn.addEventListener('click', () => {
     count--;
     render();
@@ -253,7 +265,7 @@ In your Blade template:
 </head>
 <body>
     <?= new Counter(initialCount: 10, label: 'My Counter') ?>
-    
+
     <?= IceCubeRegistry::iceCubeScript() ?>
 </body>
 </html>
@@ -292,16 +304,16 @@ Update [`vite.config.js`](vite.config.js) to use Vite's glob import for dynamic 
 
 ```javascript
 // vite.config.js
-import { defineConfig } from 'vite';
-import laravel from 'laravel-vite-plugin';
+import { defineConfig } from "vite";
+import laravel from "laravel-vite-plugin";
 
 export default defineConfig({
-    plugins: [
-        laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
-            refresh: true,
-        }),
-    ],
+  plugins: [
+    laravel({
+      input: ["resources/css/app.css", "resources/js/app.js"],
+      refresh: true,
+    }),
+  ],
 });
 ```
 
@@ -311,44 +323,69 @@ Create [`resources/js/icecube.js`](resources/js/icecube.js):
 
 ```javascript
 // Use Vite's import.meta.glob for dynamic imports
-const componentScripts = import.meta.glob('./**/*.js', {
-    eager: false,
-    base: '../../storage/app/public/icecube'
+const componentScripts = import.meta.glob("./**/*.js", {
+  eager: false,
+  base: "../../storage/app/public/icecube",
 });
 
 const initComponent = async (node) => {
-    const name = node.dataset.icecube;
-    if (!name) return;
-    const mod = await componentScripts[`./${name}.js`]?.();
-    if (!mod) return;
-    const refs = new Proxy({}, { get: (_, r) => node.querySelector(`[data-ref="${r}"]`) });
-    node.dataset.cube = 'icing';
-    await mod.default({ root: node, refs, props: JSON.parse(node.dataset.props || '{}') });
-    node.dataset.cube = 'iced';
+  const name = node.dataset.icecube;
+  if (!name) return;
+  const mod = await componentScripts[`./${name}.js`]?.();
+  if (!mod) return;
+  const refs = new Proxy(
+    {},
+    { get: (_, r) => node.querySelector(`[data-ref="${r}"]`) }
+  );
+  node.dataset.cube = "icing";
+  await mod.default({
+    root: node,
+    refs,
+    props: JSON.parse(node.dataset.props || "{}"),
+  });
+  node.dataset.cube = "iced";
 };
 
 (() => {
-    document.querySelectorAll('[data-icecube]').forEach(initComponent);
+  document.querySelectorAll("[data-icecube]").forEach(initComponent);
 
-    const observer = new MutationObserver((mutations) => {
-        mutations.flatMap(m => [...m.addedNodes]).forEach(node => {
-            if (node.nodeType === Node.ELEMENT_NODE && node.dataset.icecube !== undefined) {
-                initComponent(node);
-                node.querySelectorAll?.('[data-icecube]').forEach(initComponent);
-            }
-        });
-    });
+  const observer = new MutationObserver((mutations) => {
+    mutations
+      .flatMap((m) => [...m.addedNodes])
+      .forEach((node) => {
+        if (
+          node.nodeType === Node.ELEMENT_NODE &&
+          node.dataset.icecube !== undefined
+        ) {
+          initComponent(node);
+          node.querySelectorAll?.("[data-icecube]").forEach(initComponent);
+        }
+      });
+  });
 
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
 })();
 ```
 
-#### 4. Import IceCube in Your App
+#### 4. Use icecube.js in your app
 
-Update [`resources/js/app.js`](resources/js/app.js):
+In blade template:
 
-```javascript
-import './icecube';
+```php
+@vite(['resources/js/app.js', 'resources/js/icecube.js'])
+```
+
+Or in icedom
+
+```php
+<?php
+
+_head([
+  _safe(Vite::withEntryPoints(['resources/js/app.js', 'resources/js/icecube.js'])->toHtml()),
+])
 ```
 
 #### 5. Configure Compiler with Vite Strategy
@@ -394,7 +431,7 @@ With `ViteScriptCompiler`, compiled JavaScript will import CSS separately:
 
 ```javascript
 // Compiled output: storage/app/public/icecube/App_Components_Counter.js
-import './App_Components_Counter.css';
+import "./App_Components_Counter.css";
 
 export default function ({ root, refs, props }) {
   // Your component logic
@@ -410,16 +447,16 @@ You can import any NPM package in your component JavaScript files:
 import { signal, effect } from "@preact/signals";
 
 export default function ({ root, refs, props }) {
-    const { counter, incrementBtn, decrementBtn } = refs;
-    
-    const count = signal(props.initialCount || 0);
-    
-    effect(() => {
-        counter.textContent = count.value;
-    });
-    
-    incrementBtn.addEventListener('click', () => count.value++);
-    decrementBtn.addEventListener('click', () => count.value--);
+  const { counter, incrementBtn, decrementBtn } = refs;
+
+  const count = signal(props.initialCount || 0);
+
+  effect(() => {
+    counter.textContent = count.value;
+  });
+
+  incrementBtn.addEventListener("click", () => count.value++);
+  decrementBtn.addEventListener("click", () => count.value--);
 }
 ```
 
@@ -450,10 +487,11 @@ return [
 #### 2. Publish Configuration
 
 ```bash
-php artisan vendor:publish --tag=icecube-config
+php artisan vendor:publish --tag=icecube
 ```
 
-This creates [`config/icecube.php`](src/Laravel/config/icecube.php) where you can customize:
+This creates [`config/icecube.php`](src/Laravel/config/icecube.php) and [`resources/js/icecube.js`](resources/js/icecube.js) where you can customize:
+
 - Component namespace and directories
 - Compiler strategies (Vite/Embed, SCSS/CSS)
 - Cache settings
@@ -471,7 +509,7 @@ php artisan storage:link
 <html>
 <head>
     <title>IceCube Demo</title>
-    @vite(['resources/js/app.js'])
+    @vite(['resources/js/icecube.js'])
 </head>
 <body>
     <?= new \App\Components\Counter(initialCount: 10, label: 'My Counter') ?>
@@ -583,7 +621,7 @@ return [
             'cache_enabled' => true,
             'cache_file' => storage_path('app/private/icecube/main-cache.php'),
         ],
-        
+
         'admin' => [
             'prefix_class' => 'App\\Admin\\Components',
             'source_dir' => base_path('app/Admin/Components'),
@@ -602,16 +640,19 @@ return [
 Compilers are automatically registered in the Laravel container as `icecube.compiler.{name}` singletons.
 
 **Compile All:**
+
 ```bash
 php artisan icecube:compile
 ```
 
 **Compile Specific:**
+
 ```bash
 php artisan icecube:compile --compiler=admin
 ```
 
 The [`IceCubeServiceProvider`](src/Laravel/IceCubeServiceProvider.php) automatically:
+
 - Registers all compilers in the container
 - In development: initializes compilers for on-demand compilation
 - In production: loads all caches for maximum performance
@@ -643,8 +684,8 @@ _button('Click me')->data_ref('myButton')
 
 ```javascript
 export default function ({ root, refs, props }) {
-  refs.myButton.addEventListener('click', () => {
-    console.log('Clicked!');
+  refs.myButton.addEventListener("click", () => {
+    console.log("Clicked!");
   });
 }
 ```
@@ -690,10 +731,10 @@ Then use SCSS syntax in your components:
 ```php
 <style>
   $primary-color: #007bff;
-  
+
   & {
     background: $primary-color;
-    
+
     .nested {
       color: darken($primary-color, 10%);
     }
