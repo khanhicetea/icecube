@@ -9,26 +9,39 @@ use ReflectionProperty;
 
 abstract class SingleFileComponent extends Component implements SafeStringable
 {
-  abstract public function render(): HtmlNode;
+    abstract public function render(): HtmlNode;
 
-  public function __toString(): string
-  {
-    $root = $this->render();
+    public function getPublicProps(): array
+    {
+        $reflection = new ReflectionClass($this);
+        $publicProps = $reflection->getProperties(
+            ReflectionProperty::IS_PUBLIC,
+        );
+        $dataProps = [];
+        foreach ($publicProps as $prop) {
+            $dataProps[$prop->getName()] = $prop->getValue($this);
+        }
 
-    $className = get_class($this);
-    $componentName = str_replace('\\', '_', $className);
-
-    $reflection = new ReflectionClass($this);
-    $publicProps = $reflection->getProperties(ReflectionProperty::IS_PUBLIC);
-    $dataProps = [];
-    foreach ($publicProps as $prop) {
-      $dataProps[$prop->getName()] = $prop->getValue($this);
+        return $dataProps;
     }
 
-    $root->id($root->getAttribute('id') ?? $this->getId());
-    $root->setAttribute('data-icecube', $componentName);
-    $root->setAttribute('data-props', json_encode($dataProps));
+    public function onRender(HtmlNode $root): HtmlNode
+    {
+        $className = get_class($this);
+        $componentName = str_replace("\\", "_", $className);
 
-    return (string) $root;
-  }
+        $root->id($root->getAttribute("id") ?? $this->getId());
+        $root->setAttribute("data-icecube", $componentName);
+        $root->setAttribute("data-props", json_encode($this->getPublicProps()));
+
+        return $root;
+    }
+
+    public function __toString(): string
+    {
+        $root = $this->render();
+        $rendered = $this->onRender($root);
+
+        return (string) $rendered;
+    }
 }

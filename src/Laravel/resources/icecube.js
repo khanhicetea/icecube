@@ -4,7 +4,7 @@ const initComponent = async (node) => {
   const name = node.dataset.icecube;
   if (!name) return;
   const mod = await componentScripts[`./${name}.js`]?.();
-  if (!mod) return;
+  if (!mod || !mod.default) return;
   const refs = new Proxy({}, { get: (_, r) => node.querySelector(`[data-ref="${r}"]`) });
   node.dataset.cube = 'icing';
   await mod.default({ root: node, refs, props: JSON.parse(node.dataset.props || '{}') });

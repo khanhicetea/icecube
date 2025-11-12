@@ -59,6 +59,13 @@ abstract class Component implements SafeStringable
     return $this;
   }
 
+  public function __invoke()
+  {
+    $this->fillSlot(...func_get_args());
+
+    return $this;
+  }
+
   public function __toString(): string
   {
     return (string) $this->render();
