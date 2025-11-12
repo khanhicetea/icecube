@@ -5,26 +5,29 @@ namespace IceTea\IceCube\Laravel;
 use Illuminate\Support\ServiceProvider;
 use IceTea\IceCube\Compiler\IceCubeCompiler;
 use IceTea\IceCube\IceCubeRegistry;
+use Illuminate\Support\Facades\Route;
 
 class IceCubeServiceProvider extends ServiceProvider
 {
     public function register()
     {
-        $this->mergeConfigFrom(__DIR__ . '/config/icecube.php', 'icecube');
-        
+        $this->mergeConfigFrom(__DIR__ . "/config/icecube.php", "icecube");
+
         // Register compilers in container
-        $compilerConfigs = config('icecube.compilers', []);
-        
+        $compilerConfigs = config("icecube.compilers", []);
+
         foreach ($compilerConfigs as $name => $config) {
-            $this->app->singleton("icecube.compiler.{$name}", function ($app) use ($config) {
+            $this->app->singleton("icecube.compiler.{$name}", function (
+                $app,
+            ) use ($config) {
                 return new IceCubeCompiler(
-                    prefixClass: $config['prefix_class'],
-                    sourceDir: $config['source_dir'],
-                    compiledPhpDir: $config['compiled_php_dir'],
-                    compiledAssetsDir: $config['compiled_assets_dir'],
-                    publicUrl: $config['public_url'],
-                    scriptCompiler: $app->make($config['script_compiler']),
-                    styleCompiler: $app->make($config['style_compiler']),
+                    prefixClass: $config["prefix_class"],
+                    sourceDir: $config["source_dir"],
+                    compiledPhpDir: $config["compiled_php_dir"],
+                    compiledAssetsDir: $config["compiled_assets_dir"],
+                    publicUrl: $config["public_url"],
+                    scriptCompiler: $app->make($config["script_compiler"]),
+                    styleCompiler: $app->make($config["style_compiler"]),
                 );
             });
         }
@@ -33,10 +36,16 @@ class IceCubeServiceProvider extends ServiceProvider
     public function boot()
     {
         // Publish configuration
-        $this->publishes([
-            __DIR__ . '/config/icecube.php' => config_path('icecube.php'),
-            __DIR__ . '/resources/icecube.js' => resource_path('js/icecube2.js'),
-        ], 'icecube');
+        $this->publishes(
+            [
+                __DIR__ . "/config/icecube.php" => config_path("icecube.php"),
+                __DIR__ . "/resources/icecube.js" => resource_path(
+                    "js/icecube.js",
+                ),
+                __DIR__ . "/resources/ice.js" => resource_path("js/ice.js"),
+            ],
+            "icecube",
+        );
 
         // Register command
         if ($this->app->runningInConsole()) {
@@ -46,15 +55,17 @@ class IceCubeServiceProvider extends ServiceProvider
             ]);
         } else {
             // Initialize compilers based on environment
-            $compilerConfigs = config('icecube.compilers', []);
-            
-            if ($this->app->environment('production')) {
+            $compilerConfigs = config("icecube.compilers", []);
+
+            if ($this->app->environment("production")) {
                 // Production: Load from cache
                 foreach ($compilerConfigs as $name => $config) {
-                    if ($config['cache_enabled'] ?? false) {
-                        IceCubeRegistry::loadCache($config['cache_file']);
+                    if ($config["cache_enabled"] ?? false) {
+                        IceCubeRegistry::loadCache($config["cache_file"]);
                     } else {
-                        $compiler = $this->app->make("icecube.compiler.{$name}");
+                        $compiler = $this->app->make(
+                            "icecube.compiler.{$name}",
+                        );
                         $compiler->scanAndCompile();
                     }
                 }
@@ -65,7 +76,12 @@ class IceCubeServiceProvider extends ServiceProvider
                     $compiler->scanAndCompile();
                 }
             }
-        }
 
+            // Register routes
+            Route::post("/__icecube__", [
+                IceCubeController::class,
+                "handleComponent",
+            ]);
+        }
     }
 }
